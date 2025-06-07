@@ -29,13 +29,23 @@ def _shuffle_indices(n_samples, random_state):
 
 def _stratified_split(y, n_test, random_state):
     label_to_indices = defaultdict(list)
+
+    # S'assurer que chaque label est hashable
     for idx, label in enumerate(y):
+        # Convertit les array scalaires (ex: array([1])) en int
+        if isinstance(label, np.ndarray):
+            if label.ndim == 0:
+                label = label.item()
+            elif label.shape == (1,):
+                label = label[0]
+            else:
+                raise ValueError("Les labels doivent être des scalaires ou des tableaux de forme (1,)")
         label_to_indices[label].append(idx)
 
     rng = np.random.default_rng(seed=random_state)
     train_idx, test_idx = [], []
 
-    for label, indices in label_to_indices.items():
+    for indices in label_to_indices.values():
         indices = np.array(indices)
         rng.shuffle(indices)
         n_label_test = int(len(indices) * (n_test / len(y)))

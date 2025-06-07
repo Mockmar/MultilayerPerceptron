@@ -16,7 +16,7 @@ class Normalizer:
             std = array[:, i].std()
             if std == 0:
                 raise ValueError(f"La colonne {i} a une variance nulle, normalisation impossible.")
-            array[:, i] = (array[:, i] - mean) / std
+            # array[:, i] = (array[:, i] - mean) / std
             self.mean.append(mean)
             self.std.append(std)
 
@@ -29,7 +29,9 @@ class Normalizer:
         for i in range(nb_columns):
             if array[:, i].dtype == 'object':
                 continue
+            # print(f"col {i} avant normalisation: {array[:, i]}")
             array[:, i] = (array[:, i] - self.mean[i]) / self.std[i]
+            # print(f"col {i} après normalisation: {array[:, i]}")
         return array
     
     def fit_transform(self, array):

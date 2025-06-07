@@ -1,4 +1,6 @@
 import pandas as pd
+import matplotlib
+matplotlib.use('gtk3agg')
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns

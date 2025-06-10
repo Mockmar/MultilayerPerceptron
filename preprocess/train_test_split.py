@@ -30,9 +30,7 @@ def _shuffle_indices(n_samples, random_state):
 def _stratified_split(y, n_test, random_state):
     label_to_indices = defaultdict(list)
 
-    # S'assurer que chaque label est hashable
     for idx, label in enumerate(y):
-        # Convertit les array scalaires (ex: array([1])) en int
         if isinstance(label, np.ndarray):
             if label.ndim == 0:
                 label = label.item()

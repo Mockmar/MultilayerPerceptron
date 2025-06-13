@@ -6,7 +6,7 @@ from fonctions.loss_function import LossFunction
 class Layer:
 
     def __init__(self, input_size, output_size, activation_function):
-        self.weights = np.random.randn(input_size, output_size)
+        self.weights = np.random.randn(input_size, output_size) * np.sqrt(2 / input_size)  # He init (utile pour ReLU)
         self.bias = np.zeros((1, output_size))
         self.activation_function = activation_function
         self.inputs = None
@@ -15,29 +15,21 @@ class Layer:
         self.dW = None
         self.db = None
 
-    def __repr__(self):
-        return f"Layer(input_size={self.weights.shape[0]}, output_size(neuron_count)={self.weights.shape[1]}, activation_function={self.activation_function.__class__.__name__})"
-
     def forward(self, inputs):
         self.inputs = inputs
         self.z = np.dot(inputs, self.weights) + self.bias
         self.a = self.activation_function.forward(self.z)
         return self.a
 
-    def backward(self, dA, learning_rate, apply_activation=True):
-        # dz = dA * self.activation_function.derivative(self.z) if apply_activation else dA
-        dz = dA * self.activation_function.derivative(self.z)
-        m = self.inputs.shape[0]
-        self.dW = np.dot(self.inputs.T, dz) / m
-        self.db = np.sum(dz, axis=0, keepdims=True) / m
-        dA_prev = np.dot(dz, self.weights.T)
-        # self.weights -= learning_rate * self.dW
-        self.bias -= learning_rate * self.db
+    def backward(self, da):
+        dz = da * self.activation_function.derivative(self.z)  # dérivée de z
+        self.dW = np.dot(self.inputs.T, dz) / self.inputs.shape[0]  # moyenne sur batch
+        self.db = np.sum(dz, axis=0, keepdims=True) / self.inputs.shape[0]
+        dz_prev = np.dot(dz, self.weights.T)
+        return dz_prev
 
-        print("Poids avant update:", self.weights[0, :5])  # par ex., quelques poids
-        self.weights -= learning_rate * self.dW
-        print("Poids après update:", self.weights[0, :5])
-        return dA_prev
+    def __repr__(self):
+        return f"Layer(input_size={self.weights.shape[0]}, output_size(neuron_count)={self.weights.shape[1]}, activation_function={self.activation_function.__class__.__name__})"
     
 class Model:
     def __init__(self):
@@ -61,29 +53,31 @@ class Model:
         for layer in self.layers:
             X = layer.forward(X)
         return X
-    
-    def backward(self, y_pred, y_true):
-        dA = self.loss_function.derivative(y_pred, y_true)
-        for layer in reversed(self.layers):
-            dA = layer.backward(dA, self.learning_rate)
 
     def compile(self, loss_function: LossFunction, learning_rate: float = 0.01):
         self.loss_function = loss_function
         self.learning_rate = learning_rate
 
-    def fit(self, X, y, epochs=10):
+    def fit(self, X, y, epochs=1000, verbose=True):
         for epoch in range(epochs):
+            # Forward
             y_pred = self.forward(X)
 
-            loss = self.loss_function.forward(y_pred, y)
+            # Calcul de la perte
+            loss = self.loss_function.forward(y, y_pred)
 
-            self.backward(y_pred, y)
+            # Backward : on commence par la dérivée de la perte
+            dA = self.loss_function.derivative(y, y_pred)
 
-            print(f"Epoch {epoch + 1}/{epochs} - Loss: {loss:.4f}")
+            # Rétropropagation à travers les couches (ordre inverse)
+            for layer in reversed(self.layers):
+                dA = layer.backward(dA)
 
-    def predict(self, X):
-        y_pred = self.forward(X)
-        return y_pred
+            # Mise à jour des poids
+            for layer in self.layers:
+                layer.weights -= self.learning_rate * layer.dW
+                layer.bias -= self.learning_rate * layer.db
 
-
-
+            # Affichage optionnel
+            if verbose and (epoch % 10000 == 0 or epoch == epochs - 1):
+                print(f"Epoch {epoch+1}/{epochs} - Loss: {loss:.4f}")

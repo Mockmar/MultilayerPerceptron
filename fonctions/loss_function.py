@@ -44,18 +44,15 @@ class BinaryCrossEntropy(LossFunction):
         return (y_pred - y_true) / y_true.shape[0]
     
 class ClassificationCrossEntropy(LossFunction):
-    """Cross-entropy loss for classification tasks."""
-    
+    """Cross-entropy loss for multi-class classification with softmax output."""
+
     @staticmethod
     def forward(y_true, y_pred):
         """Compute the cross-entropy loss."""
-        # Clip predictions to avoid log(0)
-        y_pred = np.clip(y_pred, 1e-15, 1 - 1e-15)
-        return -np.mean(y_true * np.log(y_pred) + (1 - y_true) * np.log(1 - y_pred))
+        y_pred = np.clip(y_pred, 1e-15, 1 - 1e-15)  # sécurité num
+        return -np.mean(np.sum(y_true * np.log(y_pred), axis=1))  # sum sur classes, mean sur batch
 
     @staticmethod
     def derivative(y_true, y_pred):
-        """Compute the derivative of the cross-entropy loss with respect to predictions."""
-        # Clip predictions to avoid division by zero
-        y_pred = np.clip(y_pred, 1e-15, 1 - 1e-15)
-        return (y_pred - y_true) / (y_pred * (1 - y_pred)) / y_true.size
+        """Derivative of softmax + crossentropy combo (simplified)."""
+        return (y_pred - y_true) / y_true.shape[0]  # car softmax derivative fusionnée

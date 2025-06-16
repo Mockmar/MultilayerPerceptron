@@ -1,6 +1,6 @@
 import numpy as np
-from fonctions.activation_function import ActivationFunction
-from fonctions.loss_function import LossFunction
+from fonctions.activation_function import ActivationFunction, Softmax
+from fonctions.loss_function import LossFunction, ClassificationCrossEntropy
 
     
 class Layer:
@@ -9,6 +9,7 @@ class Layer:
         self.weights = np.random.randn(input_size, output_size) * np.sqrt(2 / input_size)  # He init (utile pour ReLU)
         self.bias = np.zeros((1, output_size))
         self.activation_function = activation_function
+        self.skip_activation_derivative = False
         self.inputs = None
         self.z = None
         self.a = None
@@ -22,11 +23,17 @@ class Layer:
         return self.a
 
     def backward(self, da):
-        dz = da * self.activation_function.derivative(self.z)  # dérivée de z
+        if self.skip_activation_derivative:
+            dz = da  # simplification Softmax + CrossEntropy
+        else:
+            dz = da * self.activation_function.derivative(self.z)
         self.dW = np.dot(self.inputs.T, dz) / self.inputs.shape[0]  # moyenne sur batch
         self.db = np.sum(dz, axis=0, keepdims=True) / self.inputs.shape[0]
         dz_prev = np.dot(dz, self.weights.T)
         return dz_prev
+    
+    def setSkip_activation_derivative(self, skip: bool):
+        self.skip_activation_derivative = skip
 
     def __repr__(self):
         return f"Layer(input_size={self.weights.shape[0]}, output_size(neuron_count)={self.weights.shape[1]}, activation_function={self.activation_function.__class__.__name__})"
@@ -58,26 +65,49 @@ class Model:
         self.loss_function = loss_function
         self.learning_rate = learning_rate
 
-    def fit(self, X, y, epochs=1000, verbose=True):
+    def train_on_batch(self, X_batch, y_batch):
+        y_pred = self.forward(X_batch)
+
+        loss = self.loss_function.forward(y_batch, y_pred)
+
+        if isinstance(self.loss_function, ClassificationCrossEntropy) and isinstance(self.layers[-1].activation_function, Softmax):
+            dA = y_pred - y_batch
+            self.layers[-1].skip_activation_derivative = True
+        else:
+            dA = self.loss_function.derivative(y_batch, y_pred)
+            self.layers[-1].skip_activation_derivative = False
+
+        for layer in reversed(self.layers):
+            dA = layer.backward(dA)
+
+        for layer in self.layers:
+            layer.weights -= self.learning_rate * layer.dW
+            layer.bias -= self.learning_rate * layer.db
+
+        return loss
+
+    def _check_simplified_softmax_crossentropy(self):
+        if isinstance(self.loss_function, ClassificationCrossEntropy) and isinstance(self.layers[-1].activation_function, Softmax):
+            self.layers[-1].skip_activation_derivative = True
+
+
+    def fit(self, X, y, epochs=1000, verbose=True, batch_size=32):
+        m = X.shape[0]
+
         for epoch in range(epochs):
-            # Forward
-            y_pred = self.forward(X)
+            indices = np.arange(m)
+            np.random.shuffle(indices)
+            X_shuffled = X[indices]
+            y_shuffled = y[indices]
 
-            # Calcul de la perte
-            loss = self.loss_function.forward(y, y_pred)
+            for i in range(0, m, batch_size):
+                X_batch = X_shuffled[i:i + batch_size]
+                y_batch = y_shuffled[i:i + batch_size]
 
-            # Backward : on commence par la dérivée de la perte
-            dA = self.loss_function.derivative(y, y_pred)
+                self.train_on_batch(X_batch, y_batch)
 
-            # Rétropropagation à travers les couches (ordre inverse)
-            for layer in reversed(self.layers):
-                dA = layer.backward(dA)
+            if verbose and (epoch % 100 == 0 or epoch == epochs - 1):
+                y_pred_full = self.forward(X)
+                loss_full = self.loss_function.forward(y, y_pred_full)
+                print(f"Epoch {epoch+1}/{epochs} - Loss: {loss_full:.4f}")
 
-            # Mise à jour des poids
-            for layer in self.layers:
-                layer.weights -= self.learning_rate * layer.dW
-                layer.bias -= self.learning_rate * layer.db
-
-            # Affichage optionnel
-            if verbose and (epoch % 10000 == 0 or epoch == epochs - 1):
-                print(f"Epoch {epoch+1}/{epochs} - Loss: {loss:.4f}")

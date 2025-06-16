@@ -21,7 +21,7 @@ def split_dataset(df):
     return x, y
 
 def main():
-    # try:
+    try:
         if len(sys.argv) != 2:
             raise Exception("Usage: python preprocessing.py <path_to_dataset>")
         
@@ -46,9 +46,9 @@ def main():
         np.savetxt('data/train_set.csv', train_set, delimiter=',', fmt='%f')
         np.savetxt('data/test_set.csv', test_set, delimiter=',', fmt='%f')
 
-    # except Exception as e:
-    #     print(f"Error: {e}")
-    #     sys.exit(1)
+    except Exception as e:
+        print(f"Error: {e}")
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()

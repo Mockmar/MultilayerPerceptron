@@ -56,15 +56,15 @@ class LeakyRelu(ActivationFunction):
     
 class Softmax(ActivationFunction):
     """Softmax activation function."""
-    
+
     @staticmethod
     def forward(x):
-        """Compute the softmax of vector x."""
-        e_x = np.exp(x - np.max(x))  # for numerical stability
-        return e_x / e_x.sum(axis=0, keepdims=True)
-    
+        """Compute the softmax activation (par ligne)."""
+        e_x = np.exp(x - np.max(x, axis=1, keepdims=True))  # stabilité numérique
+        return e_x / np.sum(e_x, axis=1, keepdims=True)
+
     @staticmethod
     def derivative(x):
-        """Compute the derivative of the softmax function."""
+        """Retourne la dérivée vectorisée du softmax."""
         s = Softmax.forward(x)
-        return np.diagflat(s) - np.outer(s, s)
+        return s * (1 - s)  # approximation diagonale

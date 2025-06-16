@@ -1,6 +1,6 @@
 import pandas as pd
 import matplotlib
-matplotlib.use('gtk3agg')
+# matplotlib.use('gtk3agg')
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -42,7 +42,6 @@ def plot_correlation_matrix(x):
     plt.show()
 
 def plot_feature_distributions(x, y):
-    # Fusionner pour hue
     df_plot = pd.concat([x, y], axis=1)
     df_plot.columns = list(range(df_plot.shape[1]))
     feature_columns = df_plot.columns[:-1]
@@ -55,7 +54,6 @@ def plot_feature_distributions(x, y):
         sns.kdeplot(data=df_plot, x=feature, hue=class_column, ax=axes[i], common_norm=False)
         axes[i].set_title(f"Feature {feature}")
 
-    # Supprimer les axes vides
     for i in range(len(feature_columns), len(axes)):
         fig.delaxes(axes[i])
 
@@ -64,6 +62,16 @@ def plot_feature_distributions(x, y):
     dist_path = os.path.join(OUTPUT_DIR, "feature_distributions.png")
     plt.savefig(dist_path)
     print("Feature distributions saved to:", dist_path)
+    plt.show()
+
+def plot_class_distribution(y):
+    class_counts = y[1].value_counts()
+    plt.figure(figsize=(8, 6))
+    plt.pie(class_counts, labels=class_counts.index, autopct='%1.1f%%', startangle=140)
+    plt.title("Class Distribution")
+    class_dist_path = os.path.join(OUTPUT_DIR, "class_distribution.png")
+    plt.savefig(class_dist_path)
+    print("Class distribution saved to:", class_dist_path)
     plt.show()
 
 def main():
@@ -78,6 +86,7 @@ def main():
         save_describe(df)
 
         X, Y = preprocess_data(df)
+        plot_class_distribution(Y)
         plot_correlation_matrix(X)
         plot_feature_distributions(X, Y)
 

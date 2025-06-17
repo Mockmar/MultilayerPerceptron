@@ -2,12 +2,15 @@ import numpy as np
 from fonctions.activation_function import ActivationFunction, Softmax
 from fonctions.loss_function import LossFunction, ClassificationCrossEntropy
 
-    
+
+# CLIPPING_W = 1000
+
 class Layer:
 
-    def __init__(self, input_size, output_size, activation_function):
+    def __init__(self, input_size, output_size, activation_function, layer_index):
         self.weights = np.random.randn(input_size, output_size) * np.sqrt(2 / input_size)  # He init (utile pour ReLU)
         self.bias = np.zeros((1, output_size))
+        self.layer_index =  layer_index
         self.activation_function = activation_function
         self.skip_activation_derivative = False
         self.inputs = None
@@ -24,11 +27,13 @@ class Layer:
 
     def backward(self, da):
         if self.skip_activation_derivative:
-            dz = da  # simplification Softmax + CrossEntropy
+            dz = da
         else:
             dz = da * self.activation_function.derivative(self.z)
-        self.dW = np.dot(self.inputs.T, dz) / self.inputs.shape[0]  # moyenne sur batch
+
+        self.dW = np.dot(self.inputs.T, dz) / self.inputs.shape[0]
         self.db = np.sum(dz, axis=0, keepdims=True) / self.inputs.shape[0]
+
         dz_prev = np.dot(dz, self.weights.T)
         return dz_prev
     
@@ -36,7 +41,7 @@ class Layer:
         self.skip_activation_derivative = skip
 
     def __repr__(self):
-        return f"Layer(input_size={self.weights.shape[0]}, output_size(neuron_count)={self.weights.shape[1]}, activation_function={self.activation_function.__class__.__name__})"
+        return f"Layer_{self.layer_index}(input_size={self.weights.shape[0]}, output_size(neuron_count)={self.weights.shape[1]}, activation_function={self.activation_function.__class__.__name__})"
     
 class Model:
     def __init__(self):
@@ -54,7 +59,7 @@ class Model:
         if not self.layers and input_size is None:
             raise ValueError("First layer needs input_size")
         input_dim = input_size if not self.layers else self.layers[-1].weights.shape[1]
-        self.layers.append(Layer(input_dim, output_size, activation_function))
+        self.layers.append(Layer(input_dim, output_size, activation_function, len(self.layers)))
 
     def forward(self, X):
         for layer in self.layers:
@@ -69,13 +74,10 @@ class Model:
         y_pred = self.forward(X_batch)
 
         loss = self.loss_function.forward(y_batch, y_pred)
+        if np.isnan(loss) or np.isinf(loss):
+            raise ValueError("Loss is NaN or Inf, check your data and model configuration.")
 
-        if isinstance(self.loss_function, ClassificationCrossEntropy) and isinstance(self.layers[-1].activation_function, Softmax):
-            dA = y_pred - y_batch
-            self.layers[-1].skip_activation_derivative = True
-        else:
-            dA = self.loss_function.derivative(y_batch, y_pred)
-            self.layers[-1].skip_activation_derivative = False
+        dA = self.loss_function.derivative(y_batch, y_pred)
 
         for layer in reversed(self.layers):
             dA = layer.backward(dA)
@@ -88,12 +90,11 @@ class Model:
 
     def _check_simplified_softmax_crossentropy(self):
         if isinstance(self.loss_function, ClassificationCrossEntropy) and isinstance(self.layers[-1].activation_function, Softmax):
-            self.layers[-1].skip_activation_derivative = True
-
+            self.layers[-1].setSkip_activation_derivative(True)
 
     def fit(self, X, y, epochs=1000, verbose=True, batch_size=32):
         m = X.shape[0]
-
+        self._check_simplified_softmax_crossentropy()
         for epoch in range(epochs):
             indices = np.arange(m)
             np.random.shuffle(indices)
@@ -106,7 +107,7 @@ class Model:
 
                 self.train_on_batch(X_batch, y_batch)
 
-            if verbose and (epoch % 100 == 0 or epoch == epochs - 1):
+            if verbose and (epoch % 1 == 0 or epoch == epochs - 1):
                 y_pred_full = self.forward(X)
                 loss_full = self.loss_function.forward(y, y_pred_full)
                 print(f"Epoch {epoch+1}/{epochs} - Loss: {loss_full:.4f}")

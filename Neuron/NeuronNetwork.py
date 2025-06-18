@@ -1,6 +1,8 @@
 import numpy as np
-from fonctions.activation_function import ActivationFunction, Softmax
-from fonctions.loss_function import LossFunction, ClassificationCrossEntropy
+from fonctions.activation_function import ActivationFunction, Softmax, Sigmoid
+from fonctions.loss_function import LossFunction, ClassificationCrossEntropy, BinaryCrossEntropy
+import pickle
+import os
 
 
 # CLIPPING_W = 1000
@@ -49,6 +51,12 @@ class Model:
         self.loss_function: LossFunction = None
         self.learning_rate: float = 0.01
 
+        self.train_loss_lst = []
+        self.val_loss_lst = []
+
+        self.train_accuracy_lst = []
+        self.val_accuracy_lst = []
+
     def __repr__(self):
         description = "\n".join([str(layer) for layer in self.layers])
         if not description:
@@ -92,23 +100,71 @@ class Model:
         if isinstance(self.loss_function, ClassificationCrossEntropy) and isinstance(self.layers[-1].activation_function, Softmax):
             self.layers[-1].setSkip_activation_derivative(True)
 
-    def fit(self, X, y, epochs=1000, verbose=True, batch_size=32):
-        m = X.shape[0]
+    def train(self, train_set: tuple, val_set: tuple, epochs=1000, verbose=True, batch_size=32):
+        X_train, Y_train = train_set
+        X_val, Y_val = val_set
+
         self._check_simplified_softmax_crossentropy()
+        self.fit(X_train, Y_train, X_val, Y_val, epochs, verbose, batch_size)
+
+    def predict(self, X):
+        y_pred = self.forward(X)
+        if isinstance(self.loss_function, ClassificationCrossEntropy) and isinstance(self.layers[-1].activation_function, Softmax):
+            return np.argmax(y_pred, axis=1)
+        elif isinstance(self.layers[-1].activation_function, Sigmoid):
+            return (y_pred > 0.5).astype(int)
+        return y_pred
+    
+    def evaluate(self, X, Y):
+        y_pred = self.forward(X)
+        loss = self.loss_function.forward(Y, y_pred)
+
+        if isinstance(self.loss_function, ClassificationCrossEntropy) and isinstance(self.layers[-1].activation_function, Softmax):
+            accuracy = np.mean(np.argmax(y_pred, axis=1) == np.argmax(Y, axis=1))
+        elif isinstance(self.layers[-1].activation_function, Sigmoid):
+            accuracy = np.mean((y_pred > 0.5).astype(int) == Y)
+        else:
+            accuracy = None
+
+        return loss, accuracy
+
+    def save(self, file_path):
+        if not os.path.exists(os.path.dirname(file_path)):
+            os.makedirs(os.path.dirname(file_path))
+        with open(file_path, 'wb') as f:
+            pickle.dump(self, f)
+
+    @staticmethod
+    def load(file_path):
+        with open(file_path, 'rb') as f:
+            model = pickle.load(f)
+        if not isinstance(model, Model):
+            raise ValueError("Loaded object is not a Model instance.")
+        return model
+
+    def fit(self, X_train, Y_train, X_val, Y_val, epochs=1000, verbose=True, batch_size=32):
+        m = X_train.shape[0]
         for epoch in range(epochs):
             indices = np.arange(m)
             np.random.shuffle(indices)
-            X_shuffled = X[indices]
-            y_shuffled = y[indices]
+            X_train_shuffled = X_train[indices]
+            Y_train_shuffled = Y_train[indices]
 
             for i in range(0, m, batch_size):
-                X_batch = X_shuffled[i:i + batch_size]
-                y_batch = y_shuffled[i:i + batch_size]
+                X_train_batch = X_train_shuffled[i:i + batch_size]
+                Y_train_batch = Y_train_shuffled[i:i + batch_size]
 
-                self.train_on_batch(X_batch, y_batch)
+                self.train_on_batch(X_train_batch, Y_train_batch)
 
             if verbose and (epoch % 1 == 0 or epoch == epochs - 1):
-                y_pred_full = self.forward(X)
-                loss_full = self.loss_function.forward(y, y_pred_full)
-                print(f"Epoch {epoch+1}/{epochs} - Loss: {loss_full:.4f}")
+
+                loss_train, accuracy_train = self.evaluate(X_train, Y_train)
+                self.train_loss_lst.append(loss_train)
+                self.train_accuracy_lst.append(accuracy_train)
+
+                loss_val, accuracy_val = self.evaluate(X_val, Y_val)
+                self.val_loss_lst.append(loss_val)
+                self.val_accuracy_lst.append(accuracy_val)
+
+                print(f"-- Epoch {epoch+1}/{epochs} -- Loss_train: {loss_train:.4f} - Loss_val: {loss_val:.4f} -- Accuracy_train: {accuracy_train:.4f} - Accuracy_val: {accuracy_val:.4f} --")
 

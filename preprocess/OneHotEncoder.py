@@ -9,7 +9,7 @@ class OneHotEncoder:
         self.class_to_index = {cls: idx for idx, cls in enumerate(self.classes_)}
         self.index_to_class = {idx: cls for idx, cls in enumerate(self.classes_)}
 
-    def transform(self, y):
+    def transform(self, y: np.ndarray):
         if not hasattr(self, 'classes_'):
             raise ValueError("The encoder has not been fitted yet. Call 'fit' with the labels first.")
         
@@ -21,7 +21,7 @@ class OneHotEncoder:
                 raise ValueError(f"Label '{label}' not found in fitted classes.")
         return one_hot
     
-    def fit_transform(self, y):
+    def fit_transform(self, y: np.ndarray):
         self.fit(y)
         return self.transform(y)
     

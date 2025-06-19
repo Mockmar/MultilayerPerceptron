@@ -38,13 +38,13 @@ def main():
         X_normalized = normalizer.fit_transform(X)
         normalizer.save('normalizer.json')
 
-        X_train, X_test, Y_train, Y_test = train_test_split(X_normalized, Y, test_size=0.25, shuffle=True, random_state=42, stratify=Y)
+        X_train, X_test, Y_train, Y_test = train_test_split(X_normalized, Y, test_size=0.20, stratify=Y)
 
         train_set = np.concatenate((X_train, Y_train), axis=1)
         test_set = np.concatenate((X_test, Y_test), axis=1)
 
         np.savetxt('data/train_set.csv', train_set, delimiter=',', fmt='%f')
-        np.savetxt('data/test_set.csv', test_set, delimiter=',', fmt='%f')
+        np.savetxt('data/val_set.csv', test_set, delimiter=',', fmt='%f')
 
     except Exception as e:
         print(f"Error: {e}")

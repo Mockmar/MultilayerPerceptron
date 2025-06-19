@@ -160,9 +160,10 @@ class Model:
         
     def fit(self, X_train, Y_train, X_val, Y_val, epochs=1000, verbose=True, batch_size=32):
         m = X_train.shape[0]
+        np.random.seed(21)
         for epoch in range(epochs):
             indices = np.arange(m)
-            np.random.shuffle(indices)
+            np.random.shuffle(indices)  # Ensure reproducibility
             X_train_shuffled = X_train[indices]
             Y_train_shuffled = Y_train[indices]
 

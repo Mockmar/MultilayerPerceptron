@@ -36,7 +36,7 @@ def main():
 
         normalizer = Normalizer()
         X_normalized = normalizer.fit_transform(X)
-        normalizer.save('normalizer.json')
+        normalizer.save('preprocess/normalizer.json')
 
         X_train, X_test, Y_train, Y_test = train_test_split(X_normalized, Y, test_size=0.20, stratify=Y)
 

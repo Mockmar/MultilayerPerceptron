@@ -10,6 +10,7 @@ import os
 class Layer:
 
     def __init__(self, input_size, output_size, activation_function, layer_index):
+        np.random.seed(50)  # Pour la reproductibilité
         self.weights = np.random.randn(input_size, output_size) * np.sqrt(2 / input_size)  # He init (utile pour ReLU)
         self.bias = np.zeros((1, output_size))
         self.layer_index =  layer_index

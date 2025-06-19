@@ -1,7 +1,6 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-import seaborn as sns
 from Neuron.NeuronNetwork import Model
 from fonctions.activation_function import Sigmoid, LeakyRelu, Softmax
 from fonctions.loss_function import BinaryCrossEntropy, ClassificationCrossEntropy
@@ -22,6 +21,8 @@ if __name__ == "__main__":
                         help="Path to the training data CSV file.")
     parser.add_argument("--val_data", type=str, default="data/val_set.csv",
                         help="Path to the validation data CSV file.")
+    parser.add_argument("--save_model", type=bool, default=False,
+                        help="Whether to save the trained model.")
     args = parser.parse_args()
 
     train_df = pd.read_csv(args.train_data, header=None)
@@ -59,3 +60,34 @@ if __name__ == "__main__":
 
     model.train((X_train, Y_train), (X_val, Y_val), epochs=args.epochs, verbose=True, batch_size=args.batch_size)
 
+    if args.save_model:
+        path = 'models/' + 'layers(' + '_'.join(map(str, args.layers)) + ')_lr(' + str(args.learning_rate) + ').model'
+        model.save(path)
+
+    train_loss_lst = model.train_loss_lst
+    val_loss_lst = model.val_loss_lst
+    train_accuracy_lst = model.train_accuracy_lst
+    val_accuracy_lst = model.val_accuracy_lst
+
+    plt.figure(figsize=(12, 10))
+
+    plt.subplot(2, 1, 1)
+    plt.plot(train_loss_lst, label='Train Loss', color='blue')
+    plt.plot(val_loss_lst, label='Validation Loss', color='orange')
+    plt.xlabel('Epochs')
+    plt.ylabel('Loss')
+    plt.title('Training and Validation Loss')
+    plt.legend()
+    plt.grid(True)
+
+    plt.subplot(2, 1, 2)
+    plt.plot(train_accuracy_lst, label='Train Accuracy', color='blue')
+    plt.plot(val_accuracy_lst, label='Validation Accuracy', color='orange')
+    plt.xlabel('Epochs')
+    plt.ylabel('Accuracy')
+    plt.title('Training and Validation Accuracy')
+    plt.legend()
+    plt.grid(True)
+
+    plt.tight_layout()
+    plt.show()

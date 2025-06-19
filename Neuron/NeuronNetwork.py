@@ -141,7 +141,23 @@ class Model:
         if not isinstance(model, Model):
             raise ValueError("Loaded object is not a Model instance.")
         return model
+    
+    def _early_stopping(self, patience=10, val_loss=None):
+        if not hasattr(self, 'best_val_loss'):
+            self.best_val_loss = val_loss
+            self.patience_counter = 0
+            return False
 
+        if val_loss < self.best_val_loss:
+            self.best_val_loss = val_loss
+            self.patience_counter = 0
+            return False
+        else:
+            self.patience_counter += 1
+            if self.patience_counter >= patience:
+                return True
+            return False
+        
     def fit(self, X_train, Y_train, X_val, Y_val, epochs=1000, verbose=True, batch_size=32):
         m = X_train.shape[0]
         for epoch in range(epochs):
@@ -167,4 +183,7 @@ class Model:
                 self.val_accuracy_lst.append(accuracy_val)
 
                 print(f"-- Epoch {epoch+1}/{epochs} -- Loss_train: {loss_train:.4f} - Loss_val: {loss_val:.4f} -- Accuracy_train: {accuracy_train:.4f} - Accuracy_val: {accuracy_val:.4f} --")
-
+            
+            if self._early_stopping(patience=10,val_loss=loss_val):
+                print("Early stopping triggered.")
+                break

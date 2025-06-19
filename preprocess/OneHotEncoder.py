@@ -5,9 +5,10 @@ class OneHotEncoder:
         pass
 
     def fit(self, y):
+        # d'abord 0 puis 1 il les met par ordre croissant
         self.classes_ = np.unique(y)
-        self.class_to_index = {cls: idx for idx, cls in enumerate(self.classes_)}
-        self.index_to_class = {idx: cls for idx, cls in enumerate(self.classes_)}
+        self.class_to_index = {cls: idx_col for idx_col, cls in enumerate(self.classes_)}
+        self.index_to_class = {idx_col: cls for idx_col, cls in enumerate(self.classes_)}
 
     def transform(self, y: np.ndarray):
         if not hasattr(self, 'classes_'):
@@ -15,8 +16,8 @@ class OneHotEncoder:
         
         one_hot = np.zeros((len(y), len(self.classes_)), dtype=int)
         for i, label in enumerate(y):
-            if label in self.class_to_index:
-                one_hot[i, self.class_to_index[label]] = 1
+            if label[0] in self.class_to_index:
+                one_hot[i, self.class_to_index[label[0]]] = 1
             else:
                 raise ValueError(f"Label '{label}' not found in fitted classes.")
         return one_hot

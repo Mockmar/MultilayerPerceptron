@@ -6,10 +6,11 @@ from fonctions.activation_function import Sigmoid, LeakyRelu, Softmax
 from fonctions.loss_function import BinaryCrossEntropy, ClassificationCrossEntropy
 from preprocess.OneHotEncoder import OneHotEncoder
 import argparse
+import os
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train a neural network model.")
-    parser.add_argument("--layers", type=list, default=[24, 24, 6, 2],
+    parser.add_argument("--layers", type=int, nargs='+', default=[24, 24, 6, 2],
                         help="List of layer sizes for the model.")
     parser.add_argument("--epochs", type=int, default=10000,
                         help="Number of epochs to train the model.")
@@ -21,8 +22,10 @@ if __name__ == "__main__":
                         help="Path to the training data CSV file.")
     parser.add_argument("--val_data", type=str, default="data/val_set.csv",
                         help="Path to the validation data CSV file.")
-    parser.add_argument("--save_model", type=bool, default=False,
+    parser.add_argument("--save_model", action='store_true', default=False,
                         help="Whether to save the trained model.")
+    parser.add_argument("--no_early_stop", action='store_false', default=True,
+                        help="Whether to use early stopping during training.")
     args = parser.parse_args()
 
     train_df = pd.read_csv(args.train_data, header=None)
@@ -58,10 +61,11 @@ if __name__ == "__main__":
     model.add_layer(output_size=args.layers[-1], activation_function=activation_function)
     model.compile(loss_function=loss_function, learning_rate=args.learning_rate)
 
-    model.train((X_train, Y_train), (X_val, Y_val), epochs=args.epochs, verbose=True, batch_size=args.batch_size)
+    model.train((X_train, Y_train), (X_val, Y_val), epochs=args.epochs, verbose=True, batch_size=args.batch_size, early_stopping=args.no_early_stop)
 
+    model_name = 'layers(' + '_'.join(map(str, args.layers)) + ')_lr(' + str(args.learning_rate) + ')'
     if args.save_model:
-        path = 'models/' + 'layers(' + '_'.join(map(str, args.layers)) + ')_lr(' + str(args.learning_rate) + ').model'
+        path = 'models/' + model_name + '.model'
         model.save(path)
 
     train_loss_lst = model.train_loss_lst
@@ -90,4 +94,18 @@ if __name__ == "__main__":
     plt.grid(True)
 
     plt.tight_layout()
+    os.makedirs('output_train_data/' + model_name, exist_ok=True)
+    plt.savefig('output_train_data/' + model_name + '/loss_accuracy_plot.png')
     plt.show()
+
+
+    train_data = {
+        'train_loss': train_loss_lst,
+        'val_loss': val_loss_lst,
+        'train_accuracy': train_accuracy_lst,
+        'val_accuracy': val_accuracy_lst
+    }
+
+    train_data_df = pd.DataFrame(train_data)
+    train_data_df.to_csv('output_train_data/' + model_name + '/train_data.csv', index=False)
+

@@ -10,8 +10,8 @@ import os
 class Layer:
 
     def __init__(self, input_size, output_size, activation_function, layer_index):
-        np.random.seed(50)  # Pour la reproductibilité
-        self.weights = np.random.randn(input_size, output_size) * np.sqrt(2 / input_size)  # He init (utile pour ReLU)
+        np.random.seed(50)
+        self.weights = np.random.randn(input_size, output_size) * np.sqrt(2 / input_size)
         self.bias = np.zeros((1, output_size))
         self.layer_index =  layer_index
         self.activation_function = activation_function
@@ -101,12 +101,12 @@ class Model:
         if isinstance(self.loss_function, ClassificationCrossEntropy) and isinstance(self.layers[-1].activation_function, Softmax):
             self.layers[-1].setSkip_activation_derivative(True)
 
-    def train(self, train_set: tuple, val_set: tuple, epochs=1000, verbose=True, batch_size=32):
+    def train(self, train_set: tuple, val_set: tuple, epochs=1000, verbose=True, batch_size=32, early_stopping=True):
         X_train, Y_train = train_set
         X_val, Y_val = val_set
 
         self._check_simplified_softmax_crossentropy()
-        self.fit(X_train, Y_train, X_val, Y_val, epochs, verbose, batch_size)
+        self.fit(X_train, Y_train, X_val, Y_val, epochs, verbose, batch_size, early_stopping)
 
     def predict(self, X):
         y_pred = self.forward(X)
@@ -159,12 +159,12 @@ class Model:
                 return True
             return False
         
-    def fit(self, X_train, Y_train, X_val, Y_val, epochs=1000, verbose=True, batch_size=32):
+    def fit(self, X_train, Y_train, X_val, Y_val, epochs=1000, verbose=True, batch_size=32, early_stopping=True):
         m = X_train.shape[0]
         np.random.seed(21)
         for epoch in range(epochs):
             indices = np.arange(m)
-            np.random.shuffle(indices)  # Ensure reproducibility
+            np.random.shuffle(indices)
             X_train_shuffled = X_train[indices]
             Y_train_shuffled = Y_train[indices]
 
@@ -186,6 +186,6 @@ class Model:
 
                 print(f"-- Epoch {epoch+1}/{epochs} -- Loss_train: {loss_train:.4f} - Loss_val: {loss_val:.4f} -- Accuracy_train: {accuracy_train:.4f} - Accuracy_val: {accuracy_val:.4f} --")
             
-            if self._early_stopping(patience=10,val_loss=loss_val):
+            if self._early_stopping(patience=10,val_loss=loss_val) and early_stopping:
                 print("Early stopping triggered.")
                 break

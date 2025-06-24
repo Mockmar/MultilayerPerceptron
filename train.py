@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from Neuron.NeuronNetwork import Model
 from fonctions.activation_function import Sigmoid, LeakyRelu, Softmax
+from fonctions.metrics import accuracy, recall, precision, f1_score
 from fonctions.loss_function import BinaryCrossEntropy, ClassificationCrossEntropy
 from preprocess.OneHotEncoder import OneHotEncoder
 import argparse
@@ -26,6 +27,8 @@ if __name__ == "__main__":
                         help="Whether to save the trained model.")
     parser.add_argument("--no_early_stop", action='store_false', default=True,
                         help="Whether to use early stopping during training.")
+    parser.add_argument("--no_save_data", action='store_false', default=True,
+                        help="Whether to save training data and plots.")
     args = parser.parse_args()
 
     train_df = pd.read_csv(args.train_data, header=None)
@@ -35,11 +38,13 @@ if __name__ == "__main__":
     X_train = X_train.to_numpy()
     Y_train = train_df[[30]]
     Y_train = Y_train.to_numpy()
+    Y_train_save = Y_train.copy()
 
     X_val = val_df.drop(columns=30)
     X_val = X_val.to_numpy()
     Y_val = val_df[[30]]
     Y_val = Y_val.to_numpy()
+    Y_val_save = Y_val.copy()
 
     if args.layers[-1] not in [1, 2]:
         raise ValueError("Last layer must have 1 or 2 neurons for classification.")
@@ -62,6 +67,29 @@ if __name__ == "__main__":
     model.compile(loss_function=loss_function, learning_rate=args.learning_rate)
 
     model.train((X_train, Y_train), (X_val, Y_val), epochs=args.epochs, verbose=True, batch_size=args.batch_size, early_stopping=args.no_early_stop)
+    
+    y_pred_val = model.predict(X_val).reshape(-1, 1)
+    y_pred_train = model.predict(X_train).reshape(-1, 1)
+
+    accu_train = accuracy(Y_train_save, y_pred_train)
+    accu_val = accuracy(Y_val_save, y_pred_val)
+    recall_train = recall(Y_train_save, y_pred_train)
+    recall_val = recall(Y_val_save, y_pred_val)
+    precision_train = precision(Y_train_save, y_pred_train)
+    precision_val = precision(Y_val_save, y_pred_val)
+    f1_train = f1_score(Y_train_save, y_pred_train)
+    f1_val = f1_score(Y_val_save, y_pred_val)
+
+    print("Training Accuracy:   ", accu_train)
+    print("Validation Accuracy: ", accu_val)
+    print("Training Recall:     ", recall_train)
+    print("Validation Recall:   ", recall_val)
+    print("Training Precision:  ", precision_train)
+    print("Validation Precision:", precision_val)
+    print("Training F1 Score:   ", f1_train)
+    print("Validation F1 Score: ", f1_val)
+
+
 
     model_name = 'layers(' + '_'.join(map(str, args.layers)) + ')_lr(' + str(args.learning_rate) + ')'
     if args.save_model:
@@ -107,5 +135,6 @@ if __name__ == "__main__":
     }
 
     train_data_df = pd.DataFrame(train_data)
-    train_data_df.to_csv('output_train_data/' + model_name + '/train_data.csv', index=False)
+    if args.no_save_data:
+        train_data_df.to_csv('output_train_data/' + model_name + '/train_data.csv', index=False)
 
